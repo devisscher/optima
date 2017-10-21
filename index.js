@@ -10,7 +10,7 @@ var chalk = require('chalk');
 var rimraf = require('rimraf');
 const s3 = new AWS.S3();
 /**
- * @param {*} {bucket, limit}
+ * @param {bucket, limit}
  */
 listAll = params => {
   return new Promise(resolve => {
@@ -84,7 +84,9 @@ putS3ObjectBack = (files, key) => {
     }
   });
 };
-
+/**
+ * Removes the folder in which we stored files temporarily.
+ */
 cleanFolder = () => {
   return new Promise(resolve => {
     rimraf(path.join(__dirname, 'temp'), function() {
