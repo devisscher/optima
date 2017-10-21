@@ -17,3 +17,6 @@ Why? Because large images take a long time to download. By resizing them, you ca
  npm start 
  ```
 
+# Screenshots
+
+![Demo](./screenshots/demo.gif)
