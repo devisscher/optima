@@ -7,8 +7,11 @@ const imagemin = require('imagemin');
 const imageminMozjpeg = require('imagemin-mozjpeg');
 const imageminPngquant = require('imagemin-pngquant');
 var chalk = require('chalk');
+var rimraf = require('rimraf');
 const s3 = new AWS.S3();
-
+/**
+ * @param {*} {bucket, limit}
+ */
 listAll = params => {
   return new Promise(resolve => {
     s3.listObjects(params, function(err, data) {
@@ -22,7 +25,7 @@ listAll = params => {
   });
 };
 /**
- * 
+ * @param {Bucket, Key} 
  */
 getS3ObjectAndOptimize = params => {
   return new Promise(resolve => {
@@ -82,15 +85,21 @@ putS3ObjectBack = (files, key) => {
   });
 };
 
+cleanFolder = () => {
+  return new Promise(resolve => {
+    rimraf(path.join(__dirname, 'temp'), function() {
+      resolve('done');
+    });
+  });
+};
+
 async function optimize() {
   console.log(chalk.green('Starting to compress objects in bucket.'));
   const params = {
     Bucket: config.aws.bucketName,
     MaxKeys: 1000
   };
-
   const files = await listAll(params);
-
   for (var index = 0; index < files.length; index++) {
     var element = files[index];
     let elementParams = {
@@ -101,6 +110,8 @@ async function optimize() {
     const back = await putS3ObjectBack(file, element.Key);
     console.log(back);
   }
+  const done = await cleanFolder();
+  console.log(chalk.green('Finished compressing files in bucket'));
 }
 
 optimize();
