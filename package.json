@@ -1,0 +1,27 @@
+{
+  "name": "optima",
+  "version": "1.0.0",
+  "description": "S3 bucket image optimizer",
+  "main": "index.js",
+  "scripts": {
+    "test": "test",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devisscher/optima.git"
+  },
+  "keywords": ["Images", "Optimize", "s3"],
+  "author": "Thomas Devisscher",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/devisscher/optima/issues"
+  },
+  "homepage": "https://github.com/devisscher/optima#readme",
+  "dependencies": {
+    "aws-sdk": "^2.134.0",
+    "imagemin": "^5.3.1",
+    "imagemin-jpegtran": "^5.0.2",
+    "imagemin-pngquant": "^5.0.1"
+  }
+}
