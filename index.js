@@ -113,7 +113,7 @@ async function optimize() {
     console.log(back);
   }
   const done = await cleanFolder();
-  console.log(chalk.green('Finished compressing files in bucket'));
+  console.log(chalk.green('Finished compressing objects in bucket'));
 }
 
 optimize();
