@@ -1,79 +1,106 @@
 const AWS = require('aws-sdk');
 const fs = require('fs');
 const path = require('path');
+const mkdirp = require('mkdirp');
 const config = require('./config');
 const imagemin = require('imagemin');
-const imageminJpegtran = require('imagemin-jpegtran');
+const imageminMozjpeg = require('imagemin-mozjpeg');
 const imageminPngquant = require('imagemin-pngquant');
-
+var chalk = require('chalk');
 const s3 = new AWS.S3();
-// Get objects.
-var params = {
-  Bucket: config.aws.bucketName,
-  MaxKeys: 1000
+
+listAll = params => {
+  return new Promise(resolve => {
+    s3.listObjects(params, function(err, data) {
+      if (err) {
+        console.log(err, err.stack);
+      } else {
+        const array = data.Contents;
+        resolve(array);
+      }
+    });
+  });
 };
-s3.listObjects(params, function(err, data) {
-  if (err) {
-    console.log(err, err.stack);
-  } else {
-    console.log(data.Contents);
-    const array = data.Contents;
-    for (var index = 0; index < array.length; index++) {
-      var element = array[index];
-      let elementParams = {
-        Bucket: config.aws.bucketName,
-        Key: element.Key
-      };
-      getS3ObjectAndOptimize(elementParams);
-    }
-  }
-});
 /**
  * 
- * @param {*} params 
  */
-function getS3ObjectAndOptimize(params) {
-  s3.getObject(params, function(err, data) {
-    if (err) {
-      console.log(err, err.stack);
-    } else {
-      console.log('data', data);
-      console.log('key', params.Key);
-      const filePath = path.join(__dirname, 'temp', params.Key);
-      fs.writeFileSync(filePath, new Buffer(data.Body));
-      imagemin([filePath], 'build/images', {
-        plugins: [
-          imageminJpegtran({ quality: '65-80' }),
-          imageminPngquant({ quality: '65-80' })
-        ]
-      }).then(files => {
-        console.log(files);
-        putS3ObjectBack(files, params.Key);
-        //=> [{data: <Buffer 89 50 4e …>, path: 'build/images/foo.jpg'}, …]
+getS3ObjectAndOptimize = params => {
+  return new Promise(resolve => {
+    s3.getObject(params, function(err, data) {
+      if (err) {
+        console.log(err, err.stack);
+      } else {
+        const filePathName = path.join(__dirname, 'temp', params.Key);
+        const filePath = filePathName.substring(
+          0,
+          filePathName.lastIndexOf('/')
+        );
+        mkdirp(filePath, function(err) {
+          if (err) {
+            console.error(err);
+          } else {
+            fs.writeFileSync(filePathName, new Buffer(data.Body));
+            imagemin([filePathName], 'temp', {
+              plugins: [
+                imageminMozjpeg({ quality: config.aws.jpegQuality }),
+                imageminPngquant({ quality: config.aws.pngQuality })
+              ]
+            }).then(file => {
+              resolve(file);
+            });
+          }
+        });
+      }
+    });
+  });
+};
+/**
+   * 
+   * @param {*} files 
+   * @param {*} key 
+   */
+putS3ObjectBack = (files, key) => {
+  return new Promise(resolve => {
+    for (var index = 0; index < files.length; index++) {
+      var element = files[index];
+      var params = {
+        Body: element.data,
+        Bucket: config.aws.bucketName,
+        Key: key,
+        ServerSideEncryption: 'AES256',
+        Tagging: 'key1=new',
+        ACL: config.ACL
+      };
+      s3.putObject(params, function(err, data) {
+        if (err) {
+          console.log(err, err.stack);
+        } else {
+          resolve(`${chalk.red('Compressed')} ${params.Key} ✔`);
+        }
       });
     }
   });
-}
-/**
- * 
- * @param {*} files 
- * @param {*} key 
- */
-function putS3ObjectBack(files, key) {
+};
+
+async function optimize() {
+  console.log(chalk.green('Starting to compress objects in bucket.'));
+  const params = {
+    Bucket: config.aws.bucketName,
+    MaxKeys: 1000
+  };
+
+  const files = await listAll(params);
+
   for (var index = 0; index < files.length; index++) {
     var element = files[index];
-    console.log('element', element);
-    var params = {
-      Body: element.data,
+    let elementParams = {
       Bucket: config.aws.bucketName,
-      Key: key,
-      ServerSideEncryption: 'AES256',
-      Tagging: 'key1=new'
+      Key: element.Key
     };
-    s3.putObject(params, function(err, data) {
-      if (err)
-        console.log(err, err.stack); // an error occurred
-      else console.log(data); // successful response
-    });
+    const file = await getS3ObjectAndOptimize(elementParams);
+    const back = await putS3ObjectBack(file, element.Key);
+    console.log(back);
   }
 }
+
+optimize();
