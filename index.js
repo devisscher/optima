@@ -10,8 +10,43 @@ var chalk = require('chalk');
 var rimraf = require('rimraf');
 const s3 = new AWS.S3();
 /**
- * @param {bucket, limit}
+ * @param {files}
+ * this function doesn't work. it isn't used atm.
  */
+
+listAllItemsThatNeedToBeCompressed = files => {
+  return new Promise(resolve => {
+    var arrayWithoutCompressedObjects = [];
+    for (var index = 0; index < files.length; index++) {
+      var element = files[index];
+      var objectParams = {
+        Bucket: config.aws.bucketName,
+        Key: files[index].Key
+      };
+      s3.getObjectTagging(objectParams, function(err, data) {
+        if (err) {
+          console.log(err, err.stack);
+        } else {
+          //console.log(data);
+          let tags = JSON.stringify(data.TagSet);
+          console.log('tags', tags);
+          if (tags === JSON.stringify([{ Key: 'compressed', Value: 'true' }])) {
+            console.log('FOUND');
+            arrayWithoutCompressedObjects.push(objectParams);
+          } else {
+            console.log('NOT FOUND');
+          }
+        }
+      });
+    }
+    var array = Array.from(new Set(arrayWithoutCompressedObjects));
+    resolve(array);
+  });
+};
+// return new Promise(resolve => {
+
+//     console.log(objectParams);
+
 listAll = params => {
   return new Promise(resolve => {
     s3.listObjects(params, function(err, data) {
@@ -19,6 +54,11 @@ listAll = params => {
         console.log(err, err.stack);
       } else {
         const array = data.Contents;
+        //let arrayWithoutCompressedObjects = [];
+        // get only the objects that don't contain the compressed=true key value pair.
+
+        //console.log(arrayWithoutCompressedObjects);
+
         resolve(array);
       }
     });
@@ -71,7 +111,7 @@ putS3ObjectBack = (files, key) => {
         Bucket: config.aws.bucketName,
         Key: key,
         ServerSideEncryption: 'AES256',
-        Tagging: 'key1=new',
+        Tagging: 'compressed=true',
         ACL: config.ACL
       };
       s3.putObject(params, function(err, data) {
@@ -102,12 +142,18 @@ async function optimize() {
     MaxKeys: 1000
   };
   const files = await listAll(params);
+
+  //const filesToBeCompressed = await listAllItemsThatNeedToBeCompressed(files);
+
+  //console.log('to be compressed:', filesToBeCompressed);
+
   for (var index = 0; index < files.length; index++) {
     var element = files[index];
     let elementParams = {
       Bucket: config.aws.bucketName,
       Key: element.Key
     };
+
     const file = await getS3ObjectAndOptimize(elementParams);
     const back = await putS3ObjectBack(file, element.Key);
     console.log(back);

@@ -14,8 +14,12 @@ Why? Because large images take a long time to download. By resizing them, you ca
 3. Run start script
 
  ```
- npm start 
+ npm start
  ```
+
+## How it works
+
+It adds a compressed=true key value tag to each object. If you run the script more than once on a bucket, it will only compress items that don't include this key value pair.
 
 # Screenshots
 
